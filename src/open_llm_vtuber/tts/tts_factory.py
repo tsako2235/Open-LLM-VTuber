@@ -172,16 +172,6 @@ class TTSFactory:
                 pitch=kwargs.get("pitch"),
                 speed=kwargs.get("speed"),
             )
-        elif engine_type == "voicevox":
-            from .voicevox_tts import TTSEngine as VoicevoxTTSEngine
-
-            return VoicevoxTTSEngine(
-                client_url=kwargs.get("client_url"),
-                voicevox_speaker_id=kwargs.get("voicevox_speaker_id"),
-                pitch=kwargs.get("pitch"),
-                speed=kwargs.get("speed"),
-                intonation=kwargs.get("intonation"),
-                volume=kwargs.get("volume"),
         elif engine_type == "elevenlabs_tts":
             from .elevenlabs_tts import TTSEngine as ElevenLabsTTSEngine
 
