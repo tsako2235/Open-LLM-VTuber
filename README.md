@@ -1,3 +1,6 @@
+> [!NOTE]
+> This is a customized fork for personal use. Original: https://github.com/Open-LLM-VTuber/Open-LLM-VTuber
+
 ![](./assets/banner.jpg)
 
 <h1 align="center">Open-LLM-VTuber</h1>
