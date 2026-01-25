@@ -4,6 +4,7 @@ import asyncio
 import json
 from enum import Enum
 import numpy as np
+import time
 from loguru import logger
 
 from .service_context import ServiceContext
@@ -69,6 +70,8 @@ class WebSocketHandler:
         self.current_conversation_tasks: Dict[str, Optional[asyncio.Task]] = {}
         self.default_context_cache = default_context_cache
         self.received_data_buffers: Dict[str, np.ndarray] = {}
+        self.last_interaction_time: Dict[str, float] = {}
+        self.silence_detection_tasks: Dict[str, asyncio.Task] = {}
 
         # Message handlers mapping
         self._message_handlers = self._init_message_handlers()
@@ -95,6 +98,8 @@ class WebSocketHandler:
             "audio-play-start": self._handle_audio_play_start,
             "request-init-config": self._handle_init_config_request,
             "heartbeat": self._handle_heartbeat,
+            "toggle-timer-trigger": self._handle_toggle_timer_trigger,
+            "frontend-playback-complete": self._handle_playback_complete,
         }
 
     async def handle_new_connection(
@@ -123,6 +128,12 @@ class WebSocketHandler:
                 websocket, client_uid, session_service_context
             )
 
+            # Start silence detection loop
+            if client_uid not in self.silence_detection_tasks:
+                self.silence_detection_tasks[client_uid] = asyncio.create_task(
+                    self._silence_detection_loop(client_uid)
+                )
+
             logger.info(f"Connection established for client {client_uid}")
 
         except Exception as e:
@@ -142,6 +153,7 @@ class WebSocketHandler:
         self.client_connections[client_uid] = websocket
         self.client_contexts[client_uid] = session_service_context
         self.received_data_buffers[client_uid] = np.array([])
+        self.last_interaction_time[client_uid] = time.time()
 
         self.chat_group_manager.client_group_map[client_uid] = ""
         await self.send_group_update(websocket, client_uid)
@@ -256,8 +268,7 @@ class WebSocketHandler:
         if handler:
             await handler(websocket, client_uid, data)
         else:
-            if msg_type != "frontend-playback-complete":
-                logger.warning(f"Unknown message type: {msg_type}")
+            logger.warning(f"Unknown message type: {msg_type}")
 
     async def _handle_group_operation(
         self, websocket: WebSocket, client_uid: str, data: dict
@@ -307,6 +318,12 @@ class WebSocketHandler:
                 task.cancel()
             self.current_conversation_tasks.pop(client_uid, None)
 
+        if client_uid in self.silence_detection_tasks:
+            task = self.silence_detection_tasks[client_uid]
+            if task and not task.done():
+                task.cancel()
+            self.silence_detection_tasks.pop(client_uid, None)
+
         # Call context close to clean up resources (e.g., MCPClient)
         context = self.client_contexts.get(client_uid)
         if context:
@@ -327,6 +344,12 @@ class WebSocketHandler:
             if task and not task.done():
                 task.cancel()
             self.current_conversation_tasks.pop(client_uid, None)
+        
+        if client_uid in self.silence_detection_tasks:
+            task = self.silence_detection_tasks[client_uid]
+            if task and not task.done():
+                task.cancel()
+            self.silence_detection_tasks.pop(client_uid, None)
 
         message_handler.cleanup_client(client_uid)
 
@@ -485,6 +508,8 @@ class WebSocketHandler:
                 self.received_data_buffers[client_uid],
                 np.array(audio_data, dtype=np.float32),
             )
+            # Update interaction time on audio data
+            self.last_interaction_time[client_uid] = time.time()
 
     async def _handle_raw_audio_data(
         self, websocket: WebSocket, client_uid: str, data: WSMessage
@@ -503,9 +528,10 @@ class WebSocketHandler:
                 elif len(audio_bytes) > 1024:
                     # Detected audio activity (voice)
                     self.received_data_buffers[client_uid] = np.append(
-                        self.received_data_buffers[client_uid],
                         np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32),
                     )
+                    # Update interaction time on detected speech
+                    self.last_interaction_time[client_uid] = time.time()
                     await websocket.send_text(
                         json.dumps({"type": "control", "text": "mic-audio-end"})
                     )
@@ -514,6 +540,9 @@ class WebSocketHandler:
         self, websocket: WebSocket, client_uid: str, data: WSMessage
     ) -> None:
         """Handle triggers that start a conversation"""
+        # Update interaction time on explicit trigger
+        self.last_interaction_time[client_uid] = time.time()
+
         await handle_conversation_trigger(
             msg_type=data.get("type", ""),
             data=data,
@@ -562,6 +591,9 @@ class WebSocketHandler:
         """
         Handle audio playback start notification
         """
+        # Updates interaction time so timer doesn't trigger while AI is speaking
+        self.last_interaction_time[client_uid] = time.time()
+
         group_members = self.chat_group_manager.get_group_members(client_uid)
         if len(group_members) > 1:
             display_text = data.get("display_text")
@@ -610,3 +642,76 @@ class WebSocketHandler:
             await websocket.send_json({"type": "heartbeat-ack"})
         except Exception as e:
             logger.error(f"Error sending heartbeat acknowledgment: {e}")
+
+    async def _silence_detection_loop(self, client_uid: str):
+        """Background loop to detect silence and trigger AI response"""
+        logger.info(f"Starting silence detection loop for {client_uid}")
+        try:
+            while client_uid in self.client_connections:
+                context = self.client_contexts.get(client_uid)
+                if not context:
+                    break
+
+                config = context.character_config.timer_trigger_config
+                if config and config.enabled:
+                    last_time = self.last_interaction_time.get(client_uid, time.time())
+                    if time.time() - last_time > config.timeout:
+                        # Timeout reached
+                        logger.info(
+                            f"Silence detected for {client_uid}, triggering response."
+                        )
+
+                        # Reset timer immediately to prevent double trigger
+                        self.last_interaction_time[client_uid] = time.time()
+
+                        # Construct message
+                        data = {
+                            "type": "timer-trigger",
+                            "text": config.trigger_message,
+                            "platform": "web",
+                        }
+
+                        # Trigger conversation
+                        # We trigger it as a "timer-trigger" message type.
+                        # handle_conversation_trigger will treat it as a prompt.
+                        await handle_conversation_trigger(
+                            msg_type="timer-trigger",
+                            data=data,
+                            client_uid=client_uid,
+                            context=context,
+                            websocket=self.client_connections[client_uid],
+                            client_contexts=self.client_contexts,
+                            client_connections=self.client_connections,
+                            chat_group_manager=self.chat_group_manager,
+                            received_data_buffers=self.received_data_buffers,
+                            current_conversation_tasks=self.current_conversation_tasks,
+                            broadcast_to_group=self.broadcast_to_group,
+                        )
+
+                await asyncio.sleep(1)  # Check every second
+        except asyncio.CancelledError:
+            logger.debug(f"Silence detection loop cancelled for {client_uid}")
+        except Exception as e:
+            logger.error(f"Error in silence detection loop for {client_uid}: {e}")
+
+    async def _handle_toggle_timer_trigger(
+        self, websocket: WebSocket, client_uid: str, data: dict
+    ):
+        """Handle toggling the timer trigger"""
+        context = self.client_contexts.get(client_uid)
+        if context:
+            enabled = data.get("enabled")
+            if enabled is not None:
+                context.character_config.timer_trigger_config.enabled = enabled
+                status = "enabled" if enabled else "disabled"
+                logger.info(f"Timer trigger {status} for {client_uid}")
+                if enabled:
+                    self.last_interaction_time[client_uid] = time.time()
+
+    async def _handle_playback_complete(
+        self, websocket: WebSocket, client_uid: str, data: WSMessage
+    ) -> None:
+        """Handle frontend playback complete notification"""
+        # Reset timer when AI finishes speaking
+        self.last_interaction_time[client_uid] = time.time()
+

@@ -473,6 +473,11 @@ character_config:
         source_lang: 'zh'
         target_lang: 'ja'
 
+  timer_trigger_config:
+    enabled: False # 是否启用无言触发
+    timeout: 60 # 超时时间（秒）
+    trigger_message: "User has been silent for a while." # 触发时的提示信息
+
 # 直播平台集成
 live_config:
   bilibili_live:

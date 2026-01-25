@@ -62,6 +62,16 @@ async def handle_conversation_trigger(
                 }
             )
         )
+    elif msg_type == "timer-trigger":
+        user_input = data.get("text", "")
+        # Treat timer trigger as proactive speak with hidden prompt
+        metadata = {
+            "proactive_speak": True,
+            "skip_memory": True,  # Skip storing the prompt in AI's memory (optional)
+            "skip_history": True,  # Skip storing in history (optional)
+        }
+        logger.info(f"Timer triggered with prompt: {user_input}")
+
     elif msg_type == "text-input":
         user_input = data.get("text", "")
     else:  # mic-audio-end
