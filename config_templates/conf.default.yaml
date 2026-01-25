@@ -477,6 +477,11 @@ character_config:
         source_lang: 'zh'
         target_lang: 'ja'
 
+  timer_trigger_config:
+    enabled: False
+    timeout: 60
+    trigger_message: "User has been silent for a while."
+
 # Live Streaming Integration
 live_config:
   bilibili_live:

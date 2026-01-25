@@ -10,6 +10,26 @@ from .tts_preprocessor import TTSPreprocessorConfig
 from .agent import AgentConfig
 
 
+class TimerTriggerConfig(I18nMixin):
+    """Configuration for timer-based trigger (silence detection)."""
+
+    enabled: bool = Field(default=False, alias="enabled")
+    timeout: int = Field(default=60, alias="timeout")
+    trigger_message: str = Field(
+        default="User has been silent for a while.", alias="trigger_message"
+    )
+
+    DESCRIPTIONS: ClassVar[Dict[str, Description]] = {
+        "enabled": Description(
+            en="Enable timer-based trigger", zh="启用基于计时器的触发器"
+        ),
+        "timeout": Description(en="Timeout in seconds", zh="超时时间（秒）"),
+        "trigger_message": Description(
+            en="Message to trigger when timeout is reached", zh="超时时触发的消息"
+        ),
+    }
+
+
 class CharacterConfig(I18nMixin):
     """Character configuration settings."""
 
@@ -27,8 +47,14 @@ class CharacterConfig(I18nMixin):
     tts_preprocessor_config: TTSPreprocessorConfig = Field(
         ..., alias="tts_preprocessor_config"
     )
+    timer_trigger_config: TimerTriggerConfig = Field(
+        default=TimerTriggerConfig(), alias="timer_trigger_config"
+    )
 
     DESCRIPTIONS: ClassVar[Dict[str, Description]] = {
+        "timer_trigger_config": Description(
+            en="Configuration for timer-based trigger", zh="基于计时器的触发器配置"
+        ),
         "conf_name": Description(
             en="Name of the character configuration", zh="角色配置名称"
         ),
