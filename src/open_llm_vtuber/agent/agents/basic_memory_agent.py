@@ -28,6 +28,7 @@ from ...mcpp.tool_manager import ToolManager
 from ...mcpp.json_detector import StreamJSONDetector
 from ...mcpp.types import ToolCallObject
 from ...mcpp.tool_executor import ToolExecutor
+from ...utils.cleaner import clean_ai_memory_content
 
 
 class BasicMemoryAgent(AgentInterface):
@@ -151,6 +152,9 @@ class BasicMemoryAgent(AgentInterface):
                 f"_add_message received unexpected message type: {type(message)}"
             )
             text_content = str(message)
+
+        if role == "assistant":
+            text_content = clean_ai_memory_content(text_content)
 
         if not text_content and role == "assistant":
             return
@@ -592,7 +596,7 @@ class BasicMemoryAgent(AgentInterface):
             faster_first_response=self._faster_first_response,
             segment_method=self._segment_method,
             language=self._language,
-            valid_tags=["think"],
+            valid_tags=["think", "judgment"],
         )
         async def chat_with_memory(
             input_data: BatchInput,
