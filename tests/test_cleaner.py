@@ -1,4 +1,3 @@
-import pytest
 from open_llm_vtuber.utils.cleaner import clean_ai_memory_content
 
 def test_clean_ai_memory_content_think_tag():
@@ -26,7 +25,7 @@ End."""
 def test_clean_ai_memory_content_nested_tags_not_supported_but_multiple_tags():
     content = "Text <think>msg1</think> Text <judgment>msg2</judgment>"
     expected = "Text  Text" # double space remains, which is expected regex behavior
-    assert clean_ai_memory_content(content) == "Text  Text"
+    assert clean_ai_memory_content(content) == expected
 
 def test_clean_ai_memory_content_no_tags():
     content = "Just clear text."

@@ -7,8 +7,8 @@ from src.open_llm_vtuber.agent.transformers import (
     tts_filter,
     actions_extractor,
 )
-from src.open_llm_vtuber.agent.output_types import SentenceOutput, DisplayText
-from src.open_llm_vtuber.utils.sentence_divider import SentenceWithTags
+from src.open_llm_vtuber.agent.output_types import SentenceOutput
+
 
 # Mock Live2D model for actions extractor if needed, but here we focus on parsing
 class MockLive2dModel:

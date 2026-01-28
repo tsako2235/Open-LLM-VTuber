@@ -1,6 +1,5 @@
 import asyncio
-import base64
-import os
+
 from openai import AsyncOpenAI
 
 # Configuration
