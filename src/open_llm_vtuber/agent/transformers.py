@@ -138,9 +138,14 @@ def display_processor():
                     for tag in sentence.tags:
                         if tag.name == "think":
                             if tag.state == TagState.START:
-                                text = "("
+                                text = "[Thinking: "
                             elif tag.state == TagState.END:
-                                text = ")"
+                                text = "]"
+                        elif tag.name == "judgment":
+                            if tag.state == TagState.START:
+                                text = "[Judgment: "
+                            elif tag.state == TagState.END:
+                                text = "]"
 
                     display = DisplayText(text=text)  # Simplified DisplayText creation
                     yield sentence, display, actions  # Yield the tuple
@@ -189,7 +194,7 @@ def tts_filter(
                     and isinstance(item[1], DisplayText)
                 ):
                     sentence, display, actions = item
-                    if any(tag.name == "think" for tag in sentence.tags):
+                    if any(tag.name in ["think", "judgment"] for tag in sentence.tags):
                         tts = ""
                     else:
                         tts = filter_text(
