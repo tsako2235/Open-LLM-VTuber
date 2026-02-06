@@ -12,7 +12,6 @@ system_config:
     live2d_expression_prompt: 'live2d_expression_prompt'
     # Enable think_tag_prompt to let LLMs without thinking output show inner thoughts, mental activities and actions (in parentheses format) without voice synthesis. See think_tag_prompt for more details.
     # think_tag_prompt: 'think_tag_prompt'
-    think_tag_prompt: 'think_tag_prompt'
     # live_prompt: 'live_prompt'
     # When using group conversation, this prompt will be added to the memory of each AI participant.
     group_conversation_prompt: 'group_conversation_prompt'
