@@ -1,0 +1,31 @@
+# 1. まず全ファイルを無視
+/*
+
+# 2. 開発に必要なディレクトリだけを許可
+!/src/
+!/frontend/
+!/prompts/
+!/scripts/
+!/tests/
+!/config_templates/
+!/web_tool/
+
+# 3. 重要な設定ファイルを個別に許可
+!/conf.yaml
+!/pyproject.toml
+!/requirements.txt
+!/uv.lock
+!/run_server.py
+!/ReadMe_local.md
+!/README.md
+
+# 4. 大容量・非テキスト・ログ資産を確実に除外
+/assets/
+/avatars/
+/backgrounds/
+/cache/
+/characters/
+/chat_history/
+/live2d-models/
+/logs/
+/models/
